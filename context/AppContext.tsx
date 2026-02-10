@@ -64,7 +64,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('Supabase Fetch Error:', error);
+          // If table doesn't exist (PGRST205) or connection fails, strictly log warning and keep MOCK_ORDERS
+          if (error.code === 'PGRST205') {
+             console.warn("Supabase 'orders' table not found. Using local mock data. Please run the setup SQL script.");
+          } else {
+             console.error('Supabase Fetch Error:', error.message);
+          }
           return;
         }
 
@@ -86,7 +91,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           setOrders(mappedOrders);
         }
       } catch (err) {
-        console.error('Failed to fetch orders from Supabase', err);
+        console.error('Failed to connect to Supabase. Using mock data.', err);
       }
     };
 
@@ -185,7 +190,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const orderDate = new Date().toISOString();
 
     const newOrder: Order = {
-      id: `o${Date.now()}`,
+      id: `o${Date.now()}`, // Temporary local ID
       customerId: targetUser.id,
       customerName: targetUser.name,
       items: [...cart],
@@ -204,7 +209,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
     // 2. Send to Supabase
     try {
-      const { error } = await supabase.from('orders').insert([{
+      const { data, error } = await supabase.from('orders').insert([{
         customer_id: newOrder.customerId,
         customer_name: newOrder.customerName,
         items: newOrder.items,
@@ -216,13 +221,17 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         status: newOrder.status,
         payment_method: newOrder.paymentMethod,
         created_at: newOrder.date
-      }]);
+      }]).select(); // Select to return the inserted row including generated ID
 
       if (error) {
         console.error("Supabase Insert Error:", error.message);
-        // Optionally revert state here if strict consistency is needed
-      } else {
+        if (error.code === 'PGRST205') {
+            alert("Database Error: 'orders' table not found. Please contact administrator.");
+        }
+      } else if (data && data[0]) {
         console.log("Order saved to Supabase successfully.");
+        // Optional: Update local order ID with Supabase ID
+        // setOrders(prev => prev.map(o => o.id === newOrder.id ? { ...o, id: data[0].id.toString() } : o));
       }
     } catch (err) {
       console.error("Supabase Exception:", err);
