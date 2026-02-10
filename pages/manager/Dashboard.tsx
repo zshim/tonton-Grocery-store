@@ -2,12 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { analyzeSalesTrends } from '../../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { TrendingUp, AlertCircle, IndianRupee, Users, BrainCircuit, BellRing, Send, X } from 'lucide-react';
+import { TrendingUp, AlertCircle, IndianRupee, Users, BrainCircuit, BellRing, Send, X, Truck, Edit2, Check } from 'lucide-react';
 
 const Dashboard = () => {
-  const { orders, users, sendReminders } = useApp();
+  const { orders, users, sendReminders, advertisementMessage, updateAdvertisement } = useApp();
   const [insight, setInsight] = useState<string>("");
   const [loadingInsight, setLoadingInsight] = useState(false);
+  
+  // Advertisement Edit State
+  const [isEditingAd, setIsEditingAd] = useState(false);
+  const [tempAdText, setTempAdText] = useState("");
   
   // Reminder Modal State
   const [showReminderModal, setShowReminderModal] = useState(false);
@@ -44,6 +48,11 @@ const Dashboard = () => {
     setShowReminderModal(false);
     setReminderMsg('');
   };
+  
+  const saveAdChange = () => {
+      updateAdvertisement(tempAdText);
+      setIsEditingAd(false);
+  };
 
   const StatCard = ({ title, value, icon: Icon, color }: any) => (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
@@ -61,6 +70,48 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
+      {/* Advertisement Banner */}
+      <div className="bg-gradient-to-r from-orange-500 to-amber-600 rounded-lg p-3 text-white shadow-sm flex items-center justify-between gap-2 animate-fade-in">
+        <div className="flex items-center gap-2 flex-1">
+            <Truck size={20} className="flex-shrink-0" />
+            {isEditingAd ? (
+                <input 
+                    value={tempAdText}
+                    onChange={(e) => setTempAdText(e.target.value)}
+                    className="bg-white/20 text-white placeholder-white/70 border-none outline-none rounded px-2 py-1 w-full font-semibold focus:ring-2 focus:ring-white/50"
+                    autoFocus
+                    placeholder="Enter advertisement message..."
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveAdChange();
+                        if (e.key === 'Escape') setIsEditingAd(false);
+                    }}
+                />
+            ) : (
+                <p className="font-semibold">{advertisementMessage}</p>
+            )}
+        </div>
+        <div className="flex gap-2">
+            {isEditingAd ? (
+                <>
+                    <button onClick={saveAdChange} className="p-1 hover:bg-white/20 rounded text-white" title="Save">
+                        <Check size={18} />
+                    </button>
+                    <button onClick={() => setIsEditingAd(false)} className="p-1 hover:bg-white/20 rounded text-white" title="Cancel">
+                        <X size={18} />
+                    </button>
+                </>
+            ) : (
+                <button 
+                    onClick={() => { setTempAdText(advertisementMessage); setIsEditingAd(true); }} 
+                    className="p-1 hover:bg-white/20 rounded text-white" 
+                    title="Edit Advertisement"
+                >
+                    <Edit2 size={16} />
+                </button>
+            )}
+        </div>
+      </div>
+
       <header className="mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Store Performance</h2>

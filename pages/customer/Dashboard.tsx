@@ -1,9 +1,9 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { DollarSign, ShoppingCart, Clock, TrendingUp } from 'lucide-react';
+import { DollarSign, ShoppingCart, Clock, TrendingUp, Truck } from 'lucide-react';
 
 const CustomerDashboard = () => {
-  const { user, orders, transactions } = useApp();
+  const { user, orders, transactions, advertisementMessage } = useApp();
   
   const myOrders = orders.filter(o => o.customerId === user?.id);
   const totalSpent = myOrders.reduce((acc, curr) => acc + curr.total, 0);
@@ -25,6 +25,17 @@ const CustomerDashboard = () => {
 
   return (
     <div className="space-y-8">
+      {/* Advertisement Banner */}
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl p-4 text-white shadow-lg flex items-center gap-4 animate-fade-in">
+        <div className="bg-white/20 p-3 rounded-full">
+            <Truck className="h-6 w-6" />
+        </div>
+        <div>
+            <h3 className="font-bold text-lg">Store Announcement</h3>
+            <p className="text-indigo-100 font-medium">{advertisementMessage}</p>
+        </div>
+      </div>
+
        <header>
         <h2 className="text-2xl font-bold text-slate-800">Hello, {user?.name}!</h2>
         <p className="text-slate-500">Welcome back to your personal grocery hub.</p>

@@ -11,6 +11,7 @@ interface AppContextType {
   users: User[];
   transactions: Transaction[];
   notifications: Notification[];
+  advertisementMessage: string;
   loginWithPhone: (phone: string) => boolean;
   logout: () => void;
   register: (name: string, phone: string, role: UserRole) => void;
@@ -25,6 +26,7 @@ interface AppContextType {
   payDues: (amount: number, paymentMethod: PaymentMethod) => void;
   markNotificationRead: (id: string) => void;
   sendReminders: (message: string) => number;
+  updateAdvertisement: (message: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -53,6 +55,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [users, setUsers] = useState<User[]>(MOCK_USERS);
   const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS);
   const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const [advertisementMessage, setAdvertisementMessage] = useState("Home delivery available, minimum order of ₹300 only.");
 
   // Fetch Orders from Supabase on load
   useEffect(() => {
@@ -318,6 +321,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setNotifications(prev => [...newNotes, ...prev]);
     return debtors.length;
   };
+  
+  const updateAdvertisement = (message: string) => {
+    setAdvertisementMessage(message);
+  };
 
   return (
     <AppContext.Provider value={{
@@ -328,6 +335,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       users,
       transactions,
       notifications,
+      advertisementMessage,
       loginWithPhone,
       logout,
       register,
@@ -341,7 +349,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       addProduct,
       payDues,
       markNotificationRead,
-      sendReminders
+      sendReminders,
+      updateAdvertisement
     }}>
       {children}
     </AppContext.Provider>
