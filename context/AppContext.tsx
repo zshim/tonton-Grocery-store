@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { User, Product, Order, CartItem, UserRole, PaymentStatus, Transaction, Notification, TransactionType, NotificationType, PaymentMethod } from '../types';
 import { MOCK_USERS, MOCK_PRODUCTS, MOCK_ORDERS, TAX_RATE } from '../constants';
+import { supabase } from '../services/supabaseClient';
 
 interface AppContextType {
   user: User | null;
@@ -52,6 +53,45 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [users, setUsers] = useState<User[]>(MOCK_USERS);
   const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS);
   const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+
+  // Fetch Orders from Supabase on load
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Supabase Fetch Error:', error);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          const mappedOrders: Order[] = data.map((o: any) => ({
+            id: o.id?.toString() || `o_${Math.random()}`,
+            customerId: o.customer_id,
+            customerName: o.customer_name,
+            items: o.items || [], // Assumes JSONB
+            subtotal: o.subtotal,
+            tax: o.tax,
+            discount: o.discount || 0,
+            total: o.total,
+            amountPaid: o.amount_paid,
+            status: o.status as PaymentStatus,
+            paymentMethod: o.payment_method as PaymentMethod,
+            date: o.created_at
+          }));
+          setOrders(mappedOrders);
+        }
+      } catch (err) {
+        console.error('Failed to fetch orders from Supabase', err);
+      }
+    };
+
+    fetchOrders();
+  }, []);
 
   // Auth Functions
   const sendOtp = async (phone: string): Promise<boolean> => {
@@ -128,7 +168,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   const clearCart = () => setCart([]);
 
-  const placeOrder = (amountPaid: number, paymentMethod: PaymentMethod, customerId?: string) => {
+  const placeOrder = async (amountPaid: number, paymentMethod: PaymentMethod, customerId?: string) => {
     const targetUserId = customerId || user?.id;
     const targetUser = users.find(u => u.id === targetUserId);
     
@@ -142,6 +182,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     if (amountPaid >= total) status = PaymentStatus.PAID;
     else if (amountPaid > 0) status = PaymentStatus.PARTIAL;
 
+    const orderDate = new Date().toISOString();
+
     const newOrder: Order = {
       id: `o${Date.now()}`,
       customerId: targetUser.id,
@@ -154,12 +196,39 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       amountPaid,
       status,
       paymentMethod: amountPaid > 0 ? paymentMethod : PaymentMethod.NA,
-      date: new Date().toISOString()
+      date: orderDate
     };
 
+    // 1. Optimistic UI Update
     setOrders(prev => [newOrder, ...prev]);
 
-    // Record Transactions
+    // 2. Send to Supabase
+    try {
+      const { error } = await supabase.from('orders').insert([{
+        customer_id: newOrder.customerId,
+        customer_name: newOrder.customerName,
+        items: newOrder.items,
+        subtotal: newOrder.subtotal,
+        tax: newOrder.tax,
+        discount: newOrder.discount,
+        total: newOrder.total,
+        amount_paid: newOrder.amountPaid,
+        status: newOrder.status,
+        payment_method: newOrder.paymentMethod,
+        created_at: newOrder.date
+      }]);
+
+      if (error) {
+        console.error("Supabase Insert Error:", error.message);
+        // Optionally revert state here if strict consistency is needed
+      } else {
+        console.log("Order saved to Supabase successfully.");
+      }
+    } catch (err) {
+      console.error("Supabase Exception:", err);
+    }
+
+    // Record Transactions (Local Mock Logic - Ideally move this to Supabase transactions table too)
     const debitTx: Transaction = {
       id: `t${Date.now()}_d`,
       userId: targetUser.id,
@@ -167,7 +236,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       amount: total,
       type: TransactionType.DEBIT,
       description: `Order #${newOrder.id} Charge`,
-      date: new Date().toISOString()
+      date: orderDate
     };
     
     const newTransactions = [debitTx];
@@ -181,7 +250,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         type: TransactionType.CREDIT,
         description: `Payment for Order #${newOrder.id}`,
         paymentMethod,
-        date: new Date().toISOString()
+        date: orderDate
       });
     }
 
