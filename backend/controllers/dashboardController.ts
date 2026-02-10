@@ -17,11 +17,13 @@ export const getManagerStats = async (req: Request, res: Response) => {
     const todaysOrders = await Order.find({
       createdAt: { $gte: todayStart, $lte: todayEnd }
     });
-    const todaysSales = todaysOrders.reduce((acc, order) => acc + order.total, 0);
+    // Fix: Access total from pricing object and cast to any to avoid TS issues
+    const todaysSales = todaysOrders.reduce((acc, order: any) => acc + (order.pricing?.total || 0), 0);
 
     // 2. Total Revenue (All time)
     const allOrders = await Order.find({}); // In production, use aggregate() for better performance
-    const totalRevenue = allOrders.reduce((acc, order) => acc + order.total, 0);
+    // Fix: Access total from pricing object
+    const totalRevenue = allOrders.reduce((acc, order: any) => acc + (order.pricing?.total || 0), 0);
 
     // 3. Total Pending Dues (Sum of all users' dues)
     const allUsers = await User.find({});
@@ -75,7 +77,8 @@ export const getCustomerStats = async (req: AuthRequest, res: Response) => {
 
     // 1. Order History Stats
     const myOrders = await Order.find({ customer: userId }).sort({ createdAt: -1 });
-    const totalSpent = myOrders.reduce((acc, order) => acc + order.total, 0);
+    // Fix: Access total from pricing object
+    const totalSpent = myOrders.reduce((acc, order: any) => acc + (order.pricing?.total || 0), 0);
     
     // 2. Current Dues
     const user = await User.findById(userId);
