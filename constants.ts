@@ -1,14 +1,30 @@
-
 import { Product, User, UserRole, Order, PaymentStatus, PaymentMethod } from './types';
 
 export const TAX_RATE = 0.08; // 8%
 
-export const MOCK_USERS: User[] = [
+// Manually defined users (Admin, Managers, Specific Customers)
+const MANUAL_USERS: User[] = [
   {
     id: 'u1',
     name: 'Admin Manager',
     email: 'admin@store.com',
     phone: '9999999999',
+    role: UserRole.MANAGER,
+    pendingDues: 0
+  },
+  {
+    id: 'u4',
+    name: 'Sarah Connor',
+    email: 'sarah@store.com',
+    phone: '9999999998',
+    role: UserRole.MANAGER,
+    pendingDues: 0
+  },
+  {
+    id: 'u5',
+    name: 'Mike Ross',
+    email: 'mike@store.com',
+    phone: '9999999997',
     role: UserRole.MANAGER,
     pendingDues: 0
   },
@@ -27,10 +43,61 @@ export const MOCK_USERS: User[] = [
     phone: '9876543210',
     role: UserRole.CUSTOMER,
     pendingDues: 0
+  },
+  {
+    id: 'u6',
+    name: 'Alice Johnson',
+    email: 'alice@example.com',
+    phone: '9876543211',
+    role: UserRole.CUSTOMER,
+    pendingDues: 120.50
+  },
+  {
+    id: 'u7',
+    name: 'Bob Williams',
+    email: 'bob@example.com',
+    phone: '9876543212',
+    role: UserRole.CUSTOMER,
+    pendingDues: 0
+  },
+  {
+    id: 'u8',
+    name: 'Charlie Brown',
+    email: 'charlie@example.com',
+    phone: '9876543213',
+    role: UserRole.CUSTOMER,
+    pendingDues: 500.00
+  },
+  {
+    id: 'u9',
+    name: 'Diana Prince',
+    email: 'diana@example.com',
+    phone: '9876543214',
+    role: UserRole.CUSTOMER,
+    pendingDues: 0
   }
 ];
 
-export const MOCK_PRODUCTS: Product[] = [
+// Programmatically generate 2000 additional mock customers
+const GENERATED_CUSTOMERS: User[] = Array.from({ length: 2000 }, (_, index) => {
+  const idSuffix = index + 1000;
+  // Generate valid-looking unique phone numbers starting from 7000000000
+  const phoneNumber = (7000000000 + index).toString(); 
+  
+  return {
+    id: `gen_u${idSuffix}`,
+    name: `Customer ${index + 1}`,
+    email: `customer${idSuffix}@demo.store`,
+    phone: phoneNumber,
+    role: UserRole.CUSTOMER,
+    // Randomly assign dues to approx 15% of users
+    pendingDues: index % 7 === 0 ? parseFloat((Math.random() * 800 + 50).toFixed(2)) : 0
+  };
+});
+
+export const MOCK_USERS: User[] = [...MANUAL_USERS, ...GENERATED_CUSTOMERS];
+
+const MANUAL_PRODUCTS: Product[] = [
   {
     id: 'p1',
     name: 'Organic Bananas',
@@ -83,14 +150,52 @@ export const MOCK_PRODUCTS: Product[] = [
   }
 ];
 
+// Helper to generate consistent mock data
+const CATEGORIES = [
+  "Fruits", "Vegetables", "Dairy & Milk", "Bakery", "Eggs & Meat", 
+  "Grains & Rice", "Spices & Masalas", "Oil & Ghee", "Snacks & Chips", 
+  "Beverages", "Instant Food", "Household", "Personal Care", 
+  "Baby Care", "Pet Food", "Frozen Food", "Health & Wellness"
+];
+
+const GENERATED_PRODUCTS: Product[] = Array.from({ length: 3000 }, (_, index) => {
+  const category = CATEGORIES[index % CATEGORIES.length];
+  const idSuffix = index + 1000;
+  
+  // Random price between 10 and 2000
+  const price = Math.floor(Math.random() * 1990) + 10;
+  
+  // Random stock between 0 and 200
+  const stock = Math.floor(Math.random() * 201);
+  
+  // Determine unit based on category approximation
+  let unit = 'pc';
+  if (['Fruits', 'Vegetables', 'Grains & Rice'].includes(category)) unit = 'kg';
+  if (['Dairy & Milk', 'Beverages', 'Oil & Ghee'].includes(category)) unit = 'liter';
+  if (['Snacks & Chips', 'Spices & Masalas', 'Frozen Food'].includes(category)) unit = 'pack';
+
+  return {
+    id: `gen_p${idSuffix}`,
+    name: `${category.split(' ')[0]} Item ${idSuffix}`,
+    category: category,
+    price: price,
+    stock: stock,
+    unit: unit,
+    description: `High quality ${category.toLowerCase()} item number ${idSuffix}.`,
+    imageUrl: `https://picsum.photos/200/200?random=${idSuffix}`
+  };
+});
+
+export const MOCK_PRODUCTS: Product[] = [...MANUAL_PRODUCTS, ...GENERATED_PRODUCTS];
+
 export const MOCK_ORDERS: Order[] = [
   {
     id: 'o1',
     customerId: 'u2',
     customerName: 'John Doe',
     items: [
-      { ...MOCK_PRODUCTS[0], quantity: 2 },
-      { ...MOCK_PRODUCTS[2], quantity: 1 }
+      { ...MANUAL_PRODUCTS[0], quantity: 2 },
+      { ...MANUAL_PRODUCTS[2], quantity: 1 }
     ],
     subtotal: 240.00,
     tax: 19.20,
@@ -106,7 +211,7 @@ export const MOCK_ORDERS: Order[] = [
     customerId: 'u2',
     customerName: 'John Doe',
     items: [
-      { ...MOCK_PRODUCTS[3], quantity: 1 }
+      { ...MANUAL_PRODUCTS[3], quantity: 1 }
     ],
     subtotal: 850.00,
     tax: 68.00,

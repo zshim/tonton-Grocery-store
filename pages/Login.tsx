@@ -219,19 +219,19 @@ const Login = () => {
         {step === 'PHONE' && mode === 'LOGIN' && (
           <div className="mt-8 pt-6 border-t border-slate-100 text-center">
             <p className="text-xs text-slate-400 mb-2">DEMO NUMBERS</p>
-            <div className="space-y-2">
-              <button 
-                onClick={() => setPhone('9999999999')}
-                className="block w-full text-sm text-emerald-600 hover:bg-emerald-50 py-1 rounded"
-              >
-                Manager: 9999999999
-              </button>
-              <button 
-                onClick={() => setPhone('1234567890')}
-                className="block w-full text-sm text-emerald-600 hover:bg-emerald-50 py-1 rounded"
-              >
-                Customer: 1234567890
-              </button>
+            <div className="grid grid-cols-2 gap-4 text-left">
+                <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Managers</p>
+                    <button onClick={() => setPhone('9999999999')} className="block w-full text-xs text-emerald-600 hover:underline py-0.5 text-left">Admin (999...99)</button>
+                    <button onClick={() => setPhone('9999999998')} className="block w-full text-xs text-emerald-600 hover:underline py-0.5 text-left">Sarah (999...98)</button>
+                    <button onClick={() => setPhone('9999999997')} className="block w-full text-xs text-emerald-600 hover:underline py-0.5 text-left">Mike (999...97)</button>
+                </div>
+                <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Customers</p>
+                    <button onClick={() => setPhone('1234567890')} className="block w-full text-xs text-emerald-600 hover:underline py-0.5 text-left">John (123...90)</button>
+                    <button onClick={() => setPhone('9876543211')} className="block w-full text-xs text-emerald-600 hover:underline py-0.5 text-left">Alice (987...11)</button>
+                    <button onClick={() => setPhone('9876543213')} className="block w-full text-xs text-emerald-600 hover:underline py-0.5 text-left">Charlie (987...13)</button>
+                </div>
             </div>
           </div>
         )}
