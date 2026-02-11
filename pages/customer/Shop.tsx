@@ -15,7 +15,7 @@ const Shop = () => {
     <div>
       <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">Shop Groceries</h2>
+          <h2 className="text-2xl font-bold text-slate-800">General Store</h2>
           <p className="text-slate-500">Fresh quality products for your daily needs.</p>
         </div>
         
