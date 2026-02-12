@@ -30,7 +30,7 @@ export const getManagerStats = async (req: Request, res: Response) => {
     const totalPendingDues = allUsers.reduce((acc, user) => acc + (user.pendingDues || 0), 0);
 
     // 4. Low Stock Count
-    const lowStockCount = await Product.countDocuments({ stock: { $lt: 10 }, isActive: true });
+    const lowStockCount = await Product.countDocuments({ stock: { $lt: 2 }, isActive: true });
 
     // 5. Recent Orders (Customer Activity)
     const recentOrders = await Order.find({})

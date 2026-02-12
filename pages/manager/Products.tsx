@@ -2,16 +2,14 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Product } from '../../types';
 import { generateProductDescription } from '../../services/geminiService';
-import { Plus, Wand2, Package, Search, Upload, Image as ImageIcon, X, Camera, Tag, Calculator, Percent, ChevronDown, Edit2, AlertTriangle, ChevronRight, ChevronUp, ListFilter } from 'lucide-react';
+import { Plus, Wand2, Search, Upload, Image as ImageIcon, X, Camera, Tag, Calculator, Percent, Edit2, Grid, List as ListIcon, LayoutGrid } from 'lucide-react';
 
-const Inventory = () => {
+const Products = () => {
   const { products, addProduct, updateProduct, applyDiscount } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // Low Stock State - Default to true (Ignored/Collapsed)
-  const [isLowStockIgnored, setIsLowStockIgnored] = useState(true);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   
   // Discount Modal State
   const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
@@ -45,13 +43,10 @@ const Inventory = () => {
 
   const [generatingDesc, setGeneratingDesc] = useState(false);
   
-  // Low Stock Logic
-  const lowStockItems = products.filter(p => p.stock < 2);
-
-  // 1. Get Unique Categories for Filter Tabs (Only those that exist in products)
+  // 1. Get Unique Categories for Filter Tabs
   const categories = useMemo(() => {
     const uniqueCats = new Set(products.map(p => p.category));
-    return ['All', 'Low Stock', ...Array.from(uniqueCats).sort()];
+    return ['All', ...Array.from(uniqueCats).sort()];
   }, [products]);
 
   // 2. Extensive Predefined Categories for "Add Product" + Custom ones
@@ -67,20 +62,15 @@ const Inventory = () => {
     return Array.from(uniqueCats).sort();
   }, [products]);
 
-  // 3. Filter and Sort Products Alphabetically
+  // 3. Filter and Sort Products (Alphabetical Sort)
   const displayedProducts = useMemo(() => {
     return products
       .filter(p => {
-        // Special Low Stock Filter
-        if (selectedCategory === 'Low Stock') {
-            return p.stock < 2 && p.name.toLowerCase().includes(searchTerm.toLowerCase());
-        }
-
         const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
         const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
         return matchesCategory && matchesSearch;
       })
-      .sort((a, b) => a.name.localeCompare(b.name)); // Alphabetical Sort
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [products, selectedCategory, searchTerm]);
 
   // Camera Stream Management
@@ -118,17 +108,14 @@ const Inventory = () => {
     let selling = parseFloat(field === 'selling' ? value : priceForm.sellingPrice) || 0;
 
     if (field === 'mrp') {
-      // If MRP changes, recalculate selling price based on existing discount
       selling = mrp - (mrp * (discount / 100));
       setPriceForm({ mrp: value, discountPercent: priceForm.discountPercent, sellingPrice: selling.toFixed(2) });
     } else if (field === 'discount') {
-      // If Discount changes, recalculate selling price
       if (value === '' || parseFloat(value) < 0) discount = 0;
       if (parseFloat(value) > 100) discount = 100;
       selling = mrp - (mrp * (discount / 100));
       setPriceForm({ mrp: priceForm.mrp, discountPercent: value, sellingPrice: selling.toFixed(2) });
     } else if (field === 'selling') {
-      // If Selling Price changes, recalculate discount percentage
       if (mrp > 0) {
         discount = ((mrp - selling) / mrp) * 100;
         setPriceForm({ mrp: priceForm.mrp, discountPercent: discount.toFixed(1), sellingPrice: value });
@@ -221,20 +208,16 @@ const Inventory = () => {
       const finalOriginalPrice = parseFloat(priceForm.mrp) || finalPrice;
       const stockValue = Number(newItem.stock);
 
-      // Check for existing product by name (case-insensitive) ONLY when adding new (not editing)
-      // This allows automatic stock increment if product exists
       const existingProduct = !newItem.id 
         ? products.find(p => p.name.toLowerCase() === newItem.name!.trim().toLowerCase()) 
         : null;
 
       if (existingProduct) {
-        // AUTO-ADD STOCK LOGIC
         const updatedStock = existingProduct.stock + stockValue;
         
         const mergedProduct: Product = {
             ...existingProduct,
             stock: updatedStock,
-            // Update other fields to match the latest entry
             price: finalPrice, 
             originalPrice: finalOriginalPrice,
             category: finalCategory,
@@ -244,16 +227,15 @@ const Inventory = () => {
         };
 
         updateProduct(mergedProduct);
-        alert(`Product "${existingProduct.name}" already exists. Added ${stockValue} units to stock. New Total: ${updatedStock}`);
+        alert(`Product "${existingProduct.name}" updated with new details and stock.`);
       } else {
-        // CREATE NEW OR UPDATE EXISTING (Edit Mode)
         const productData: Product = {
             id: newItem.id || `p${Date.now()}`,
             name: newItem.name!,
             category: finalCategory,
             price: finalPrice,
             originalPrice: finalOriginalPrice,
-            stock: stockValue, // For new products or edits, this is the explicit value
+            stock: stockValue,
             unit: newItem.unit!,
             description: newItem.description,
             imageUrl: newItem.imageUrl || `https://picsum.photos/200/200?random=${Date.now()}`
@@ -270,7 +252,6 @@ const Inventory = () => {
     }
   };
 
-  // Discount Modal Logic (Existing feature)
   const openDiscountModal = (product: Product) => {
     setDiscountProduct(product);
     setNewDiscountPrice(product.price.toString());
@@ -289,199 +270,195 @@ const Inventory = () => {
 
   return (
     <div>
-      {/* Low Stock Alert Section (Compact & Ignored by Default) */}
-      {lowStockItems.length > 0 && (
-        <div className="bg-red-50 border border-red-100 rounded-lg p-3 shadow-sm mb-4 transition-all">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="bg-red-100 p-1.5 rounded-full flex-shrink-0">
-                        <AlertTriangle className="text-red-600 h-4 w-4" />
-                    </div>
-                    <div>
-                        <h3 className="font-bold text-red-800 text-sm flex items-center gap-2">
-                            Low Stock Warning 
-                            <span className="bg-red-200 text-red-800 text-[10px] px-1.5 py-0.5 rounded-full">{lowStockItems.length}</span>
-                        </h3>
-                    </div>
-                </div>
+      {/* 1. Header with Title and Add Button */}
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">Product Catalog</h2>
+          <p className="text-slate-500">Manage your product listings and details.</p>
+        </div>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="bg-emerald-600 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-emerald-700 transition-colors shadow-sm whitespace-nowrap flex-shrink-0"
+        >
+          <Plus size={18} />
+          <span className="hidden sm:inline">Add Product</span>
+          <span className="sm:hidden">Add</span>
+        </button>
+      </div>
 
-                <div className="flex items-center gap-2">
-                    <button 
-                        onClick={() => setSelectedCategory('Low Stock')}
-                        className="text-xs font-bold text-white bg-red-500 border border-red-600 px-3 py-1 rounded shadow-sm hover:bg-red-600 flex items-center gap-1"
-                        title="Show only low stock items in the table below"
-                    >
-                        View Full List <ListFilter size={14} />
-                    </button>
-                    
-                    <button 
-                        onClick={() => setIsLowStockIgnored(!isLowStockIgnored)}
-                        className="text-xs font-bold text-red-600 bg-white border border-red-200 px-3 py-1 rounded hover:bg-red-50 flex items-center gap-1"
-                    >
-                        {isLowStockIgnored ? (
-                            <>Quick View <ChevronRight size={14} /></>
-                        ) : (
-                            <>Collapse <ChevronUp size={14} /></>
+      {/* 2. Prominent Search Bar (Top of screen) */}
+      <div className="relative mb-6">
+         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+            <Search size={20} />
+         </div>
+         <input 
+            type="text" 
+            placeholder="Search for products by name..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm transition-all text-base"
+         />
+      </div>
+
+      {/* 3. Toolbar: Categories & View Toggle */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        {/* Category Tabs */}
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide flex-1 w-full sm:w-auto">
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all border ${
+                selectedCategory === cat 
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' 
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-emerald-200'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* View Toggle */}
+        <div className="flex bg-slate-100 p-1 rounded-lg shrink-0">
+            <button 
+                onClick={() => setViewMode('list')} 
+                className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow text-emerald-600' : 'text-slate-400 hover:text-slate-600'}`}
+                title="List View"
+            >
+                <ListIcon size={18} />
+            </button>
+            <button 
+                onClick={() => setViewMode('grid')} 
+                className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow text-emerald-600' : 'text-slate-400 hover:text-slate-600'}`}
+                title="Grid View"
+            >
+                <LayoutGrid size={18} />
+            </button>
+        </div>
+      </div>
+
+      {/* 4. Product List/Grid */}
+      {displayedProducts.length === 0 ? (
+           <div className="py-16 text-center text-slate-400 flex flex-col items-center">
+              <Grid className="h-12 w-12 mb-4 opacity-20" />
+              <p>No products found.</p>
+           </div>
+      ) : (
+        viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {displayedProducts.map(product => {
+                    const isDiscounted = product.originalPrice && product.originalPrice > product.price;
+                    return (
+                    <div key={product.id} className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-shadow group flex flex-col">
+                        <div className="h-40 bg-slate-50 relative shrink-0">
+                        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                        <div className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded text-[10px] font-bold text-slate-700 shadow-sm uppercase">
+                            {product.category}
+                        </div>
+                        {isDiscounted && (
+                            <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">
+                            SALE
+                            </div>
                         )}
-                    </button>
+                        </div>
+                        
+                        <div className="p-4 flex flex-col flex-1">
+                        <div className="mb-2">
+                            <h3 className="font-bold text-slate-800 line-clamp-1" title={product.name}>{product.name}</h3>
+                            <div className="flex items-center gap-2 mt-1">
+                                {isDiscounted && (
+                                    <span className="text-xs line-through text-slate-400">₹{product.originalPrice?.toFixed(2)}</span>
+                                )}
+                                <span className="font-bold text-emerald-600">₹{product.price.toFixed(2)}</span>
+                                <span className="text-xs text-slate-400 font-normal">/ {product.unit}</span>
+                            </div>
+                        </div>
+
+                        <div className="mt-auto pt-3 border-t border-slate-50 flex items-center justify-between">
+                            <span className={`text-xs font-medium px-2 py-1 rounded-full ${product.stock < 10 ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                Stock: {product.stock}
+                            </span>
+                            
+                            <div className="flex gap-1">
+                                <button 
+                                    onClick={() => openEditModal(product)} 
+                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                    title="Edit"
+                                >
+                                    <Edit2 size={16} />
+                                </button>
+                                <button 
+                                    onClick={() => openDiscountModal(product)} 
+                                    className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                                    title="Discount"
+                                >
+                                    <Tag size={16} />
+                                </button>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                    );
+                })}
+            </div>
+        ) : (
+            // List View
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                <div className="divide-y divide-slate-100">
+                    {displayedProducts.map(product => {
+                        const isDiscounted = product.originalPrice && product.originalPrice > product.price;
+                        return (
+                            <div key={product.id} className="p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors group">
+                                {/* Image */}
+                                <div className="h-12 w-12 rounded-lg bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
+                                    <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
+                                </div>
+
+                                {/* Info */}
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="font-bold text-slate-800 truncate text-sm sm:text-base">{product.name}</h4>
+                                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                                        <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600 border border-slate-200">{product.category}</span>
+                                        <span>Stock: <span className={product.stock < 10 ? "text-red-600 font-bold" : "text-emerald-600 font-medium"}>{product.stock} {product.unit}</span></span>
+                                    </div>
+                                </div>
+
+                                {/* Price */}
+                                <div className="text-right">
+                                    {isDiscounted && (
+                                        <div className="text-[10px] text-slate-400 line-through">₹{product.originalPrice?.toFixed(2)}</div>
+                                    )}
+                                    <div className="font-bold text-emerald-600 text-sm sm:text-base">₹{product.price.toFixed(2)}</div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                    <button 
+                                        onClick={() => openEditModal(product)} 
+                                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                        title="Edit"
+                                    >
+                                        <Edit2 size={18} />
+                                    </button>
+                                    <button 
+                                        onClick={() => openDiscountModal(product)} 
+                                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                                        title="Discount"
+                                    >
+                                        <Tag size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
-
-            {!isLowStockIgnored && (
-                <div className="animate-fade-in mt-3 pt-3 border-t border-red-100">
-                    <p className="text-red-600 text-[11px] mb-2 font-medium">Restock needed for:</p>
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                        {lowStockItems.slice(0, 12).map(item => (
-                            <div key={item.id} className="bg-white/80 px-2 py-1.5 rounded text-[11px] font-semibold text-red-700 border border-red-200 flex justify-between items-center shadow-sm">
-                                <span className="truncate mr-2 flex-1">{item.name}</span>
-                                <span className="bg-red-100 text-red-800 px-1.5 rounded border border-red-200">{item.stock}</span>
-                            </div>
-                        ))}
-                    </div>
-                    {lowStockItems.length > 12 && (
-                        <div className="mt-2 text-[10px] font-bold text-red-500 italic">
-                            + {lowStockItems.length - 12} more items...
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
+        )
       )}
 
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">Inventory Management</h2>
-          <p className="text-slate-500">Track stock and add new products.</p>
-        </div>
-        <div className="flex items-center gap-3 w-full md:w-auto">
-           <div className="relative flex-1 md:block md:flex-none">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
-              <input 
-                type="text" 
-                placeholder="Search..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full md:w-48 pl-9 pr-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-              />
-           </div>
-           <button 
-            onClick={() => setIsModalOpen(true)}
-            className="bg-emerald-600 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-emerald-700 transition-colors shadow-sm whitespace-nowrap flex-shrink-0"
-          >
-            <Plus size={18} />
-            <span className="hidden sm:inline">Add Product</span>
-            <span className="sm:hidden">Add</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Category Filter Tabs */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-        {categories.map(cat => {
-            const isLowStockTab = cat === 'Low Stock';
-            const isActive = selectedCategory === cat;
-            
-            let buttonClass = 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50';
-            
-            if (isActive) {
-                if (isLowStockTab) {
-                    buttonClass = 'bg-red-500 text-white border-red-500 shadow-md';
-                } else {
-                    buttonClass = 'bg-emerald-600 text-white border-emerald-600 shadow-md';
-                }
-            } else if (isLowStockTab) {
-                buttonClass = 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100';
-            }
-
-            return (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all border ${buttonClass}`}
-              >
-                {cat}
-              </button>
-            );
-        })}
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[700px]">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="p-4 font-semibold text-slate-600 text-sm whitespace-nowrap">Product</th>
-              <th className="p-4 font-semibold text-slate-600 text-sm whitespace-nowrap">Category</th>
-              <th className="p-4 font-semibold text-slate-600 text-sm text-right whitespace-nowrap">Price</th>
-              <th className="p-4 font-semibold text-slate-600 text-sm text-right whitespace-nowrap">Stock</th>
-              <th className="p-4 font-semibold text-slate-600 text-sm whitespace-nowrap">Unit</th>
-              <th className="p-4 font-semibold text-slate-600 text-sm text-center whitespace-nowrap">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {displayedProducts.length === 0 ? (
-               <tr>
-                 <td colSpan={6} className="p-8 text-center text-slate-400">
-                    {selectedCategory === 'Low Stock' 
-                        ? "Great job! No items are currently low in stock." 
-                        : "No products found in this category."}
-                 </td>
-               </tr>
-            ) : (
-              displayedProducts.map(product => (
-                <tr key={product.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded bg-slate-100 flex-shrink-0 overflow-hidden border border-slate-200">
-                        <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
-                      </div>
-                      <div>
-                        <div className="font-medium text-slate-800 line-clamp-1">{product.name}</div>
-                        <div className="text-xs text-slate-500 truncate max-w-xs">{product.description}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-4 text-sm text-slate-600">
-                    <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs whitespace-nowrap">
-                      {product.category}
-                    </span>
-                  </td>
-                  <td className="p-4 text-sm text-slate-800 font-medium text-right">
-                    {product.originalPrice && product.originalPrice > product.price ? (
-                      <div className="whitespace-nowrap">
-                        <span className="text-xs line-through text-slate-400 mr-2">₹{product.originalPrice.toFixed(2)}</span>
-                        <span className="text-emerald-600">₹{product.price.toFixed(2)}</span>
-                      </div>
-                    ) : (
-                      `₹${product.price.toFixed(2)}`
-                    )}
-                  </td>
-                  <td className={`p-4 text-sm text-right font-medium ${product.stock < 20 ? 'text-red-600' : 'text-emerald-600'}`}>
-                    {product.stock}
-                  </td>
-                  <td className="p-4 text-sm text-slate-500">{product.unit}</td>
-                  <td className="p-4 text-center whitespace-nowrap">
-                    <button 
-                      onClick={() => openEditModal(product)}
-                      className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors mr-1"
-                      title="Edit Product"
-                    >
-                      <Edit2 size={18} />
-                    </button>
-                    <button 
-                      onClick={() => openDiscountModal(product)}
-                      className="text-amber-600 hover:bg-amber-50 p-2 rounded-lg transition-colors"
-                      title="Apply Discount"
-                    >
-                      <Tag size={18} />
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
+      {/* Reused Modals (Same as Inventory) */}
+      
       {/* Add/Edit Product Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -521,7 +498,7 @@ const Inventory = () => {
                 </div>
               </div>
 
-              {/* Pricing Section with Auto-Calculation */}
+              {/* Pricing Section */}
               <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
                   <h4 className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1">
                       <Calculator size={14} /> Pricing & Discounts
@@ -566,17 +543,9 @@ const Inventory = () => {
                           />
                       </div>
                   </div>
-                  {parseFloat(priceForm.mrp) > parseFloat(priceForm.sellingPrice) && (
-                      <div className="mt-2 text-right">
-                          <span className="text-xs text-slate-500">Price Saving: </span>
-                          <span className="text-xs font-bold text-emerald-600">
-                              ₹{(parseFloat(priceForm.mrp) - parseFloat(priceForm.sellingPrice)).toFixed(2)}
-                          </span>
-                      </div>
-                  )}
               </div>
               
-              {/* Image Upload Section */}
+              {/* Image Upload */}
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-2">Product Image</label>
                 
@@ -699,7 +668,7 @@ const Inventory = () => {
         </div>
       )}
 
-      {/* Discount Modal (For applying discount to existing items) */}
+      {/* Discount Modal */}
       {isDiscountModalOpen && discountProduct && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl w-full max-w-sm p-6 shadow-2xl animate-fade-in">
@@ -747,4 +716,4 @@ const Inventory = () => {
   );
 };
 
-export default Inventory;
+export default Products;

@@ -1,6 +1,6 @@
 import { Product, User, UserRole, Order, PaymentStatus, PaymentMethod } from './types';
 
-export const TAX_RATE = 0.08; // 8%
+export const TAX_RATE = 0; // 0%
 
 // Manually defined users (Admin, Managers, Specific Customers)
 const MANUAL_USERS: User[] = [
@@ -198,10 +198,10 @@ export const MOCK_ORDERS: Order[] = [
       { ...MANUAL_PRODUCTS[2], quantity: 1 }
     ],
     subtotal: 240.00,
-    tax: 19.20,
+    tax: 0,
     discount: 0,
-    total: 259.20,
-    amountPaid: 259.20,
+    total: 240.00,
+    amountPaid: 240.00,
     status: PaymentStatus.PAID,
     paymentMethod: PaymentMethod.CASH,
     date: new Date(Date.now() - 86400000 * 2).toISOString() // 2 days ago
@@ -214,9 +214,9 @@ export const MOCK_ORDERS: Order[] = [
       { ...MANUAL_PRODUCTS[3], quantity: 1 }
     ],
     subtotal: 850.00,
-    tax: 68.00,
+    tax: 0,
     discount: 0,
-    total: 918.00,
+    total: 850.00,
     amountPaid: 0,
     status: PaymentStatus.PENDING,
     paymentMethod: PaymentMethod.NA,

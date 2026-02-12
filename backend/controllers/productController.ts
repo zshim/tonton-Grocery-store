@@ -115,8 +115,8 @@ export const deleteProduct = async (req: Request, res: Response) => {
 // @access  Private/Manager
 export const getLowStockProducts = async (req: Request, res: Response) => {
   try {
-    // Define low stock threshold (e.g., less than 10 units)
-    const products = await Product.find({ stock: { $lt: 10 }, isActive: true });
+    // Define low stock threshold (e.g., less than 2 units)
+    const products = await Product.find({ stock: { $lt: 2 }, isActive: true });
     res.json(products);
   } catch (error: any) {
     res.status(500).json({ message: error.message });

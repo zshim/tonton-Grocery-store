@@ -4,7 +4,7 @@ import { UserRole } from '../types';
 import { 
   ShoppingCart, LogOut, LayoutDashboard, Package, 
   User as UserIcon, ChefHat, Menu, X, DollarSign, 
-  FileText, Bell, History, Calculator, Phone 
+  FileText, Bell, History, Calculator, Phone, Tag 
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -41,6 +41,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate }) => 
     </button>
   );
 
+  // Desktop Sidebar User Profile Component
   const UserProfileSection = () => (
     <div className="flex items-center gap-3 mb-4 px-2">
       <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold flex-shrink-0">
@@ -61,7 +62,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate }) => 
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
       {/* Sidebar - Desktop */}
       <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 h-screen sticky top-0">
         <div className="p-6 border-b border-slate-100">
@@ -78,6 +79,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate }) => 
           {isManager ? (
             <>
               <NavItem page="dashboard" icon={LayoutDashboard} label="Dashboard" />
+              <NavItem page="products" icon={Tag} label="Products" />
               <NavItem page="inventory" icon={Package} label="Inventory" />
               <NavItem page="billing" icon={Calculator} label="Billing / POS" />
               <NavItem page="orders" icon={FileText} label="Orders" />
@@ -88,6 +90,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate }) => 
               <NavItem page="dashboard" icon={LayoutDashboard} label="Dashboard" />
               <NavItem page="shop" icon={Package} label="Shop" />
               <NavItem page="cart" icon={ShoppingCart} label="Cart" />
+              <NavItem page="orders" icon={FileText} label="My Orders" />
               <NavItem page="assistant" icon={ChefHat} label="Smart Chef" />
               <NavItem page="history" icon={History} label="History & Dues" />
             </>
@@ -136,11 +139,12 @@ const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate }) => 
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 bg-white z-40 pt-20 px-4 flex flex-col h-full">
-           <nav className="space-y-2 flex-1">
+        <div className="md:hidden fixed inset-0 bg-white z-40 pt-20 px-4 flex flex-col h-full animate-fade-in">
+           <nav className="space-y-2 flex-1 overflow-y-auto">
             {isManager ? (
               <>
                 <NavItem page="dashboard" icon={LayoutDashboard} label="Dashboard" />
+                <NavItem page="products" icon={Tag} label="Products" />
                 <NavItem page="inventory" icon={Package} label="Inventory" />
                 <NavItem page="billing" icon={Calculator} label="Billing / POS" />
                 <NavItem page="orders" icon={FileText} label="Orders" />
@@ -151,26 +155,49 @@ const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate }) => 
                 <NavItem page="dashboard" icon={LayoutDashboard} label="Dashboard" />
                 <NavItem page="shop" icon={Package} label="Shop" />
                 <NavItem page="cart" icon={ShoppingCart} label="Cart" />
+                <NavItem page="orders" icon={FileText} label="My Orders" />
                 <NavItem page="assistant" icon={ChefHat} label="Smart Chef" />
                 <NavItem page="history" icon={History} label="History & Dues" />
               </>
             )}
              <NavItem page="notifications" icon={Bell} label="Notifications" />
           </nav>
+          
           <div className="pb-8 border-t border-slate-100 pt-4">
-             <div className="px-2 mb-2">
-                <UserProfileSection />
+             {/* Mobile User Profile Section */}
+             <div className="flex items-center gap-3 px-2 mb-4">
+                <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold flex-shrink-0">
+                  {user?.name.charAt(0)}
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-sm font-semibold text-slate-700 truncate">{user?.name}</p>
+                  <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                </div>
              </div>
-             <button onClick={logout} className="flex items-center space-x-3 w-full px-4 py-3 text-red-600">
-                <LogOut size={20} />
-                <span className="font-medium">Sign Out</span>
-             </button>
+
+             {/* Mobile Action Buttons */}
+             <div className="grid grid-cols-2 gap-3">
+                 <a 
+                   href={`tel:${isManager ? SUPPORT_PHONE : STORE_PHONE}`}
+                   className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-100 transition-colors border border-emerald-100"
+                 >
+                    <Phone size={16} />
+                    {isManager ? 'Support' : 'Call Store'}
+                 </a>
+                 <button 
+                   onClick={logout} 
+                   className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors border border-red-100"
+                 >
+                    <LogOut size={16} />
+                    Sign Out
+                 </button>
+             </div>
           </div>
         </div>
       )}
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-0 mt-16 md:mt-0 p-4 md:p-8 overflow-y-auto h-screen bg-slate-50">
+      <main className="flex-1 pt-16 md:pt-0 p-4 md:p-8 overflow-y-auto h-[calc(100vh-4rem)] md:h-screen bg-slate-50 md:ml-0">
         <div className="max-w-7xl mx-auto">
           {children}
         </div>

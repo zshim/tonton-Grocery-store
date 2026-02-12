@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { Order, Product, User, Transaction } from '../schemas';
 import { AuthRequest } from '../middleware/authMiddleware';
 
-const TAX_RATE = 0.08; // 8% Tax
+const TAX_RATE = 0; // 0% Tax
 
 // @desc    Create new order (Customer or Manager manual bill)
 // @route   POST /api/orders

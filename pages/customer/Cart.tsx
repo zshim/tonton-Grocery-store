@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Trash2, Minus, Plus, CreditCard, Banknote, Smartphone, MapPin, User, Loader2 } from 'lucide-react';
-import { TAX_RATE } from '../../constants';
 import { BillCalculator } from '../../components/Calculators';
 import { PaymentMethod } from '../../types';
 import { supabase } from '../../services/supabaseClient';
@@ -17,13 +16,20 @@ const Cart = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [mobile, setMobile] = useState('');
-  const [street, setStreet] = useState('');
-  const [locality, setLocality] = useState('');
-  const [pinCode, setPinCode] = useState('');
+  const [street, setStreet] = useState('Meizailung');
+  const [locality, setLocality] = useState('Meizailung');
+  const [pinCode, setPinCode] = useState('795142');
 
   // Payment Details
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.ONLINE);
+  
+  // Tax Setting - Default 0% as requested
+  const [taxRate, setTaxRate] = useState(0);
+
+  const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  const tax = subtotal * taxRate;
+  const total = subtotal + tax;
 
   // Pre-fill user data
   useEffect(() => {
@@ -35,9 +41,12 @@ const Cart = () => {
     }
   }, [user]);
 
-  const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const tax = subtotal * TAX_RATE;
-  const total = subtotal + tax;
+  // Auto-fill payment amount when entering checkout or when total changes
+  useEffect(() => {
+    if (isCheckingOut) {
+      setPaymentAmount(total.toFixed(2));
+    }
+  }, [isCheckingOut, total]);
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +83,7 @@ const Cart = () => {
 
       // 2. Process internal app logic (Update local state, transactions, etc.)
       const paid = parseFloat(paymentAmount || '0');
-      placeOrder(paid, paymentMethod);
+      placeOrder(paid, paymentMethod, undefined, taxRate);
       
       // 3. Reset UI
       setIsCheckingOut(false);
@@ -107,16 +116,16 @@ const Cart = () => {
         {/* Cart Items */}
         <div className="lg:col-span-2 space-y-4">
           {cart.map(item => (
-            <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+            <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center space-x-4">
-                 <img src={item.imageUrl} alt={item.name} className="h-16 w-16 rounded object-cover bg-slate-100" />
+                 <img src={item.imageUrl} alt={item.name} className="h-16 w-16 rounded object-cover bg-slate-100 shrink-0" />
                  <div>
                    <h4 className="font-semibold text-slate-800">{item.name}</h4>
                    <p className="text-emerald-600 font-medium">₹{item.price.toFixed(2)} <span className="text-slate-400 text-xs">/ {item.unit}</span></p>
                  </div>
               </div>
               
-              <div className="flex items-center space-x-6">
+              <div className="flex items-center justify-between w-full sm:w-auto space-x-6">
                 <div className="flex items-center space-x-2 bg-slate-50 rounded-lg p-1">
                   <button onClick={() => updateCartQuantity(item.id, -1)} className="p-1 hover:bg-white rounded shadow-sm"><Minus size={14} /></button>
                   <span className="w-8 text-center font-medium text-sm">{item.quantity}</span>
@@ -134,7 +143,21 @@ const Cart = () => {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 h-fit">
            <h3 className="font-bold text-slate-800 mb-4 text-lg">Order Summary</h3>
            
-           <BillCalculator subtotal={subtotal} />
+           <div className="flex justify-between items-center mb-2">
+             <label className="text-xs font-semibold text-slate-500">Tax Rate (%)</label>
+             <div className="flex items-center bg-slate-50 border border-slate-200 rounded px-2 py-1 w-20">
+               <input 
+                 type="number" 
+                 min="0"
+                 step="0.1"
+                 value={taxRate * 100}
+                 onChange={(e) => setTaxRate(Math.max(0, parseFloat(e.target.value) || 0) / 100)}
+                 className="w-full bg-transparent text-right text-xs outline-none font-medium text-slate-700"
+               />
+             </div>
+           </div>
+
+           <BillCalculator subtotal={subtotal} taxRate={taxRate} />
 
            <div className="mt-6">
              {!isCheckingOut ? (

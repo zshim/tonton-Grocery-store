@@ -12,6 +12,7 @@ interface AppContextType {
   transactions: Transaction[];
   notifications: Notification[];
   advertisementMessage: string;
+  billingOrder: Order | null;
   loginWithPhone: (phone: string) => boolean;
   logout: () => void;
   register: (name: string, phone: string, role: UserRole) => void;
@@ -21,13 +22,15 @@ interface AppContextType {
   removeFromCart: (productId: string) => void;
   updateCartQuantity: (productId: string, delta: number) => void;
   clearCart: () => void;
-  placeOrder: (amountPaid: number, paymentMethod: PaymentMethod, customerId?: string) => void;
+  placeOrder: (amountPaid: number, paymentMethod: PaymentMethod, customerId?: string, customTaxRate?: number) => Promise<Order | undefined>;
   addProduct: (product: Product) => void;
+  updateProduct: (product: Product) => void;
   payDues: (amount: number, paymentMethod: PaymentMethod) => void;
   markNotificationRead: (id: string) => void;
   sendReminders: (message: string) => number;
   updateAdvertisement: (message: string) => void;
   applyDiscount: (productId: string, discountPrice: number) => void;
+  setBillingOrder: (order: Order | null) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -57,6 +60,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS);
   const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
   const [advertisementMessage, setAdvertisementMessage] = useState("Home delivery available, minimum order of ₹300 only.");
+  const [billingOrder, setBillingOrder] = useState<Order | null>(null);
 
   // Fetch Orders from Supabase on load
   useEffect(() => {
@@ -177,14 +181,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   const clearCart = () => setCart([]);
 
-  const placeOrder = async (amountPaid: number, paymentMethod: PaymentMethod, customerId?: string) => {
+  const placeOrder = async (amountPaid: number, paymentMethod: PaymentMethod, customerId?: string, customTaxRate?: number): Promise<Order | undefined> => {
     const targetUserId = customerId || user?.id;
     const targetUser = users.find(u => u.id === targetUserId);
     
-    if (!targetUser) return;
+    if (!targetUser) return undefined;
 
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const tax = subtotal * TAX_RATE;
+    const tax = subtotal * (customTaxRate !== undefined ? customTaxRate : TAX_RATE);
     const total = subtotal + tax;
     
     let status = PaymentStatus.PENDING;
@@ -229,7 +233,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
       if (error) {
         console.error("Supabase Insert Error:", error.message);
-        // Warn but do not alert the user to interrupt flow if it's just a missing table in dev
         if (error.code === 'PGRST205') {
             console.warn("Database Error: 'orders' table not found. Order saved locally in memory only.");
         }
@@ -240,7 +243,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       console.error("Supabase Exception:", err);
     }
 
-    // Record Transactions (Local Mock Logic - Ideally move this to Supabase transactions table too)
+    // Record Transactions
     const debitTx: Transaction = {
       id: `t${Date.now()}_d`,
       userId: targetUser.id,
@@ -277,11 +280,31 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         }
     }
 
+    // 3. Notify Managers
+    const managerUsers = users.filter(u => u.role === UserRole.MANAGER);
+    const newNotifications = managerUsers.map(manager => ({
+      id: `notif_${Date.now()}_${manager.id}`,
+      userId: manager.id,
+      title: 'New Shopping Order',
+      message: `Order #${newOrder.id} placed by ${newOrder.customerName} for ₹${newOrder.total.toFixed(2)}.`,
+      type: NotificationType.SYSTEM,
+      isRead: false,
+      date: new Date().toISOString()
+    }));
+
+    setNotifications(prev => [...newNotifications, ...prev]);
+
     clearCart();
+    
+    return newOrder;
   };
 
   const addProduct = (product: Product) => {
     setProducts(prev => [...prev, product]);
+  };
+  
+  const updateProduct = (product: Product) => {
+    setProducts(prev => prev.map(p => p.id === product.id ? product : p));
   };
 
   const payDues = (amount: number, paymentMethod: PaymentMethod) => {
@@ -370,6 +393,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       transactions,
       notifications,
       advertisementMessage,
+      billingOrder,
       loginWithPhone,
       logout,
       register,
@@ -381,11 +405,13 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       clearCart,
       placeOrder,
       addProduct,
+      updateProduct,
       payDues,
       markNotificationRead,
       sendReminders,
       updateAdvertisement,
-      applyDiscount
+      applyDiscount,
+      setBillingOrder
     }}>
       {children}
     </AppContext.Provider>
